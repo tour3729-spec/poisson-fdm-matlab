@@ -1,4 +1,4 @@
-% Finite Difference Method for 1 x 1 m^2 for Laplace equation ( = 4 )
+% Finite Difference Method for 1 x 1 m^2 for POISSON equation ( = 4 )
 
 clear,clc
 
@@ -32,76 +32,87 @@ if meshview == 1
     plot(X,Y,'r*')
 end
 
+
+
+
+% B VECTOR & 5 DIAGONALS
+
+% INTERNAL NODES
+
+for i = 1:IMAX
+    for j = 1:JMAX
+        k = JMAX*(i-1) + j;
+        D1(k) = -2*(DX^2 + DY^2);
+        D2(k) = DX^2;
+        D3(k) = DX^2;
+        D4(k) = DY^2;
+        D5(k) = DY^2;
+        B(k) = 4*DX^2*DY^2;
+    end
+end
+
+%LEFT BOUNDARY
+
+for i = 1:IMAX:IMAX
+    for j = 1:JMAX
+        k = JMAX*(i-1) + j;
+        D1(k) = 1;
+        D2(k) = 0;
+        D3(k) = 0;
+        D4(k) = 0;
+        D5(k) = 0;
+        B(k) = (((j-1)*DY)^2);
+    end
+end
+
+%RIGHT BOUNDARY
+
+for i2 = 1:IMAX:IMAX
+    for j = 1:JMAX
+        i = IMAX - i2 + 1;
+        k = JMAX*(i-1) + j;
+        D1(k) = 1;
+        D2(k) = 0;
+        D3(k) = 0;
+        D4(k) = 0;
+        D5(k) = 0;
+        B(k) = ((j-1)*DY)^2 + (NX*DX)^2;
+    end
+end
+
+%BOTTOM BOUNDARY
+
+for i = 1:IMAX
+    for j = 1:JMAX:JMAX
+        k = JMAX*(i-1) + j;
+        D1(k) = 1;
+        D2(k) = 0;
+        D3(k) = 0;
+        D4(k) = 0;
+        D5(k) = 0;
+        B(k) = ((i-1)*DX)^2;
+    end
+end
+
+%TOP BOUNDARY
+
+for i = 1:IMAX
+    for j2 = 1:JMAX:JMAX
+        j = JMAX - j2 +1;
+        k = JMAX*(i-1) + j;
+        D1(k) = 1;
+        D2(k) = 0;
+        D3(k) = 0;
+        D4(k) = 0;
+        D5(k) = 0;
+        B(k) = ((i-1)*DX)^2 + ((JMAX-1)*DY)^2;
+    end
+end
+
+
+
 % SOLVE THE PDE
 
-% CONSTRUCT THE 5 DIAGONALS
-
-% D1
-
-D1 = zeros(JMAX*IMAX,1);
-D1 = D1 + (-2*(DX^2+DY^2));
-
-for i1 = 1:JMAX
-    D1(i1) = 1; D1(i1+(IMAX-1)*JMAX) = 1; % exclude boundary nodes on the right and left line
-end
-
-for i1 = (JMAX+1):JMAX:((IMAX-2)*JMAX+1)
-    D1(i1) = 1;  D1(i1+JMAX-1) = 1; % exclude boundary nodes on the up and down horizontal lines (above and below internal nodes) 
-end
-
-% D2 & D3
-
-for i1 = 2:(JMAX*IMAX)
-    
-    if D1(i1) < 0
-        D2(i1-1) = DX^2; 
-    else
-        D2(i1-1) = 0;
-    end
-
-    if D1(i1-1) < 0
-        D3(i1-1) = DX^2; 
-    else
-        D3(i1-1) = 0; 
-    end
-end
-
-% D4 & D5
-
-for i1 = (JMAX+1):(IMAX*JMAX)
-
-    if D1(i1) < 0
-         D4(i1-JMAX) = DY^2;
-    else
-         D4(i1-JMAX) = 0;
-    end
-    if D1(i1-JMAX) < 0
-        D5(i1-JMAX) = DY^2;
-    else
-        D5(i1-JMAX) = 0;
-    end
-end
-
-% B VECTOR
-
-for i1 = 1:(IMAX*JMAX)
-    B(i1) = 4*DX^2*DY^2;
-end
-
-for i1 = 1:JMAX
-    B(i1) = (((i1-1)*DY)^2); % LEFT BOUNDARY
-    B(i1+(IMAX-1)*JMAX) = (((i1-1)*DY)^2) + (NX*DX)^2; % RIGHT BOUNDARY
-end
-
-n = 0;
-
-for i1 = (JMAX+1):JMAX:((IMAX-2)*JMAX+1)
-    n = n + 1;
-    B(i1) = (n*DX)^2; %BOTTOM(BOUNDARY
-    B(i1+JMAX-1) = (n*DX)^2 + (NY*DY)^2; %TOP BOUNDARY
-end
-
-%B = B';
 
 % JACOBI Solution
 
@@ -111,28 +122,30 @@ X = B;
 X_star = X;
 X_new = X;
 
-Ro_2 = 0;
-R_2 = 0;
-R_Ro = 10000;
+Ro_2 = 0; %for measuring the square terms ofn1st residual
+R_2 = 0; %for measuring the square terms of residual
+R_Ro = 10000; %first big normalized residual for while check to keep running before producing and R_Ro
 
-for i1 = 1:(IMAX*JMAX)
-    if D1(i1) < 0 
-        n = n+1;
-        X_new(i1) = 0.85; % random value for first iteration (only for internal nodes)
-        %Ro_2 = (B(i1)-X_new(i1)*D1(i1)-X_new(i1-JMAX)*D4(i1-JMAX)-X_new(i1-1)*D2(i1-1)-X_new(i1+1)*D3(i1)-X_new(i1+JMAX)*D5(i1))^2 + Ro_2;
+
+for i = 2:(IMAX-1)
+    for j = 2:(JMAX-1)
+        k = JMAX*(i-1) + j;
+        X_new(k) = 0.85; % random value for first iteration (only for internal nodes)
     end
 end
 
-for i1 = 1:(IMAX*JMAX)
-    if D1(i1) < 0
-        Ro_2 = (B(i1)-X_new(i1)*D1(i1)-X_new(i1-JMAX)*D4(i1-JMAX)-X_new(i1-1)*D2(i1-1)-X_new(i1+1)*D3(i1)-X_new(i1+JMAX)*D5(i1))^2 + Ro_2;
+for i = 2:(IMAX-1)
+    for j = 2:(JMAX-1)
+        k = JMAX*(i-1) + j;
+        Ro_2 = (B(k)-X_new(k)*D1(k)-X_new(k-JMAX)*D4(k)-X_new(k-1)*D2(k)-X_new(k+1)*D3(k)-X_new(k+JMAX)*D5(k))^2 + Ro_2;;
     end
 end
+
 
 X = X_new;
 Ro = sqrt(Ro_2);
 
-% ITERATIONS
+% ITERATIONS 
 
 figure;
 h = animatedline('Color', 'b', 'LineWidth', 2);
@@ -144,38 +157,40 @@ ylabel('Residual (R/Ro)');
 grid on;
 
 n = 0;
+max_iter = 1000000;
 
-while R_Ro > 10^(-6)
+while R_Ro > 10^(-6) && n < max_iter % Drop the initial residual by 6 orders of magnitude or until max number of iterations
 
-for i = 1:(JMAX*IMAX)
-    if D1(i) < 0
-        X_star(i) = 1/D1(i)*(B(i)-X(i-JMAX)*D4(i-JMAX)-X(i-1)*D2(i-1)-X(i+1)*D3(i)-X(i+JMAX)*D5(i));
-        X_new(i) = w*X_star(i) + (1-w)*X(i);
+
+    for i = 2:(IMAX-1)
+        for j = 2:(JMAX-1)
+            k = JMAX*(i-1) + j;
+            X_star(k) = 1/D1(k)*(B(k)-X(k-JMAX)*D4(k)-X(k-1)*D2(k)-X(k+1)*D3(k)-X(k+JMAX)*D5(k));
+            X_new(k) = w*X_star(k) + (1-w)*X(k);
+        end
     end
-end
 
-for i = 1:(IMAX*JMAX)
-    if D1(i) < 0
-       R_2 = (B(i)-X_new(i)*D1(i)-X_new(i-JMAX)*D4(i-JMAX)-X_new(i-1)*D2(i-1)-X_new(i+1)*D3(i)-X_new(i+JMAX)*D5(i))^2 + R_2;
+    for i = 2:(IMAX-1)
+        for j = 2:(JMAX-1)
+            k = JMAX*(i-1) + j;
+            R_2 = (B(k)-X_new(k)*D1(k)-X_new(k-JMAX)*D4(k)-X_new(k-1)*D2(k)-X_new(k+1)*D3(k)-X_new(k+JMAX)*D5(k))^2 + R_2;
+        end
     end
-end
-
-n = n + 1;
-R_Ro = sqrt(R_2)/Ro;
-X = X_new;
-R_2 = 0;
-ITER = n;
-
-addpoints(h, ITER, R_Ro);
-drawnow limitrate;
+    n = n + 1;
+    R_Ro = sqrt(R_2)/Ro;
+    X = X_new;
+    R_2 = 0;
+    ITER = n;
+    addpoints(h, ITER, R_Ro);
+    drawnow limitrate;
 end
 
 % PLOT ISOLINES (CONTOUR)
 
-x = 0:DX:1;
-y = 0:DY:1;
+x_grid = 0:DX:1;
+y_grid = 0:DY:1;
 
-[XX, YY] = meshgrid(x, y);
+[XX, YY] = meshgrid(x_grid, y_grid);
 
 U = reshape(X, JMAX, IMAX);
 
